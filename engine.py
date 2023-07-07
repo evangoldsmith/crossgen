@@ -139,6 +139,7 @@ class Board:
                 if (len(line.strip()) == self.x):
                     self.words.append(line.strip())
 
+        random.shuffle(self.words)
 
     def cell_exist(self, x, y):
         if (x < 0 or x >= self.x or y < 0 or y >= self.y):
