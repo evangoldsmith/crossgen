@@ -9,16 +9,18 @@ class Board:
         self.y = size
         self.file = file
         self.words = []
-        self.board = [[Cell(j, i) for i in range(size)] for j in range(size)]
+        self.board = [[Cell(j, i) for i in range(size)] for j in range(size)]   
+        self.picks = []
+        self.last_board = []
 
     def pick(self):
 
         # Create deep copy of board, convert to list, and remove collapsed cells
         grid = copy.deepcopy(self.board)
         cell_list =  [element for sublist in grid for element in sublist]
-        #print(cell_list)
+
         uncollaped_list = list(filter(lambda x: x.collapsed == False, cell_list))
-        #print(uncollaped_list)
+
 
         # Ensure there are more than 0 cells to choose from
         if (len(uncollaped_list) == 0):
@@ -36,15 +38,18 @@ class Board:
 
     def collapse(self):
         print('Collapsing')
+        self.last_board = self.board
         pick = self.pick()
         print('Picked: ' + str(pick))
         if (pick):
             self.board[pick[0]][pick[1]].observe()
+            self.picks.append(pick)
         else:
             return 
 
         print('Full Update')
         self.update()
+        self.shuffle_words()
 
     
     def update(self):
@@ -57,6 +62,11 @@ class Board:
 
                 if (len(possible) == 0):
                     print('ERROR, Need Backtracking')
+                    coord = self.picks[-1]
+                    last_char = self.board[coord[0]][coord[1]].char
+                    print(f"\tfrom, {self.picks[-1]}: removing, {last_char}")
+                    self.picks[-1].options.remove(last_char)
+
                 c.options = possible
                 c.calc_ent()
 
@@ -138,7 +148,9 @@ class Board:
             for line in f:
                 if (len(line.strip()) == self.x):
                     self.words.append(line.strip())
+        self.shuffle_words()
 
+    def shuffle_words(self):
         random.shuffle(self.words)
 
     def cell_exist(self, x, y):
@@ -218,7 +230,6 @@ class Cell:
         
         return out
 
-    
     def calc_ent(self):
         # Calculate potential states of cell
         self.ent = len(self.options)
@@ -234,13 +245,11 @@ class Cell:
             print('Observing: ' + str(self.cord))
             self.collapsed = True
             self.char = self.options[random.randint(0, len(self.options) - 1)]
-            self.options = [self.char]
             self.ent = 1
             self.update()
         except Exception as e:
             print('Error: ' + str(self.cord) + ' NEED BACKTRACK')
-            print(e)
-            return
+
         
     def manual_observe(self, char):
         self.collapsed = True
