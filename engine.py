@@ -13,7 +13,11 @@ class Board:
         self.picks = []
         self.last_board = []
 
-    def pick(self):
+
+    '''
+    Return the cordinates of a random un-collapsed cell with the minimum entropy
+    '''
+    def pick(self, skip=False):
 
         # Create deep copy of board, convert to list, and remove collapsed cells
         grid = copy.deepcopy(self.board)
@@ -36,7 +40,10 @@ class Board:
         rand_least = random.choice(filtered_list)
         return rand_least.cord
 
-    def collapse(self):
+    '''
+    Observe cell from pick() and call update() to update board with new entropy values
+    '''
+    def collapse(self, skip=False):
         print('Collapsing')
         self.last_board = self.board
         pick = self.pick()
@@ -51,7 +58,9 @@ class Board:
         self.update()
         self.shuffle_words()
 
-    
+    '''
+    For every uncollapsed cell, check the possible chars and update entropy values
+    '''
     def update(self):
 
         cell_list = self.get_list()
@@ -60,17 +69,22 @@ class Board:
             if not c.collapsed:
                 possible = self.get_possible_chars(c)
 
+                #If anyone one cell has 0 entropy, backtracking is required
                 if (len(possible) == 0):
-                    print('ERROR, Need Backtracking')
+                    print("\nBACKTRACKING REQUIRED")
                     coord = self.picks[-1]
-                    last_char = self.board[coord[0]][coord[1]].char
-                    print(f"\tfrom, {self.picks[-1]}: removing, {last_char}")
-                    self.picks[-1].options.remove(last_char)
+                    self.board[coord[0]][coord[1]].remove()
+                    print("\n")
+                    self.debug()
+                    self.collapse()
+                    break
 
                 c.options = possible
                 c.calc_ent()
 
-
+    '''
+    Given a specific cell, return a list of possible chars given the state of the board from get_valid_words() and build_words()
+    '''
     def get_possible_chars(self, c):
         if (c.collapsed):
             return [c.char]
@@ -101,7 +115,9 @@ class Board:
         
         return possible
 
-    
+    '''
+    Give the two current built words from each direction (right, down); every uncollapsed cell is '*'
+    '''
     def build_words(self, c):
         down = right = ''
         for y in range(self.size):
@@ -120,7 +136,9 @@ class Board:
 
         return [right, down]
 
-    
+    '''
+    Using the list of words, return a list of each valid option that matches word param
+    '''
     def get_valid_words(self, word):
         valid = []
         for w in self.words:
@@ -176,6 +194,7 @@ class Board:
         print('Collapsing')
         if (self.cell_exist(x, y)):
             self.board[x][y].manual_observe(char)
+
             print('Full Update')
             self.update()
         else:
@@ -249,6 +268,19 @@ class Cell:
             self.update()
         except Exception as e:
             print('Error: ' + str(self.cord) + ' NEED BACKTRACK')
+    
+    def remove(self):
+        print(f"removing {self.char} from {self.ent} options")
+        print(self.cord)
+        
+        # Remove deadend char from options
+        if self.ent > 1:
+            self.options.remove(self.char)
+        self.calc_ent()
+
+        print(f"new ent: {self.ent}")     
+        self.collapsed = False
+        self.char = '0'
 
         
     def manual_observe(self, char):
