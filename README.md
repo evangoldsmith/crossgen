@@ -4,7 +4,9 @@
 This idea has been used as an algorithm for procedural generation of complex images, audio, text, and other forms of media. In this project, I use a custom version of this algorithm written in python to automatically generate unique crosswords.
 ### How It Works
 A square board of a user inputed size is instatiated with each cell starting with max "entropy" of 26 (for each potential letter in the alphabet).
-![image info](.img/crossgen.jpg)
+
+![Representation of wfc board](.img/crossgen.jpg)
+
 The board then goes through a series of "collapsing" where a random cell with minimum entropy is observed and collapsed to a random letter of it's potential options.
 
 ### Special Thanks
