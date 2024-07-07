@@ -1,10 +1,10 @@
 from engine import Board
 
-thing = Board(3, 'words.txt')
-thing.read()
-thing.debug()
+thing = Board(4, 'words.txt')
+print(thing.grid)
+thing.print_ent()
 
-for i in range(9):
-    print('Iteration: ' + str(i+1))
+while not thing.complete:
     thing.collapse()
-    thing.debug()
+
+print(thing.grid)

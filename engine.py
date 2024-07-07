@@ -1,266 +1,167 @@
 import random
 import copy
+import re
+import sys
+
+import numpy as np
+import pandas as pd
+
+from cell import Cell, CHARS
 
 class Board:
 
     def __init__(self, size, file):
         self.size = size
-        self.x = size
-        self.y = size
-        self.file = file
-        self.words = []
-        self.board = [[Cell(j, i) for i in range(size)] for j in range(size)]   
-        self.picks = []
-        self.last_board = []
+        self.fileName = file
+        self.counter = 0
 
-    def pick(self):
+        # Create grid of cells
+        self.grid = self._create_grid()
 
-        # Create deep copy of board, convert to list, and remove collapsed cells
-        grid = copy.deepcopy(self.board)
-        cell_list =  [element for sublist in grid for element in sublist]
+        # Store words from file in set
+        self.words = self._read_words()
 
-        uncollaped_list = list(filter(lambda x: x.collapsed == False, cell_list))
+        self.complete = False
 
-
-        # Ensure there are more than 0 cells to choose from
-        if (len(uncollaped_list) == 0):
-            return None
-
-        # Sort by entropy, create list of cells with least entropy
-        uncollaped_list.sort(key=lambda x: x.ent)
-        least = uncollaped_list[0].ent
-        filtered_list = list(filter(lambda x: x.ent == least, uncollaped_list))
-        
-
-        # Return random cell from list
-        rand_least = random.choice(filtered_list)
-        return rand_least.cord
 
     def collapse(self):
-        print('Collapsing')
-        self.last_board = self.board
-        pick = self.pick()
-        print('Picked: ' + str(pick))
-        if (pick):
-            self.board[pick[0]][pick[1]].observe()
-            self.picks.append(pick)
+        self.print_ent()
+        print(self.grid)
+
+        choice = self._pick()
+        if choice:
+
+            # print(f"Collapsing cell {choice.get_info()}")
+            choice.observe()
+            # print(f"Collapsed cell {choice.get_info()}")
         else:
-            return 
-
-        print('Full Update')
-        self.update()
-        self.shuffle_words()
-
-    
-    def update(self):
-
-        cell_list = self.get_list()
-
-        for c in cell_list:
-            if not c.collapsed:
-                possible = self.get_possible_chars(c)
-
-                if (len(possible) == 0):
-                    print('ERROR, Need Backtracking')
-                    coord = self.picks[-1]
-                    last_char = self.board[coord[0]][coord[1]].char
-                    print(f"\tfrom, {self.picks[-1]}: removing, {last_char}")
-                    self.picks[-1].options.remove(last_char)
-
-                c.options = possible
-                c.calc_ent()
-
-
-    def get_possible_chars(self, c):
-        if (c.collapsed):
-            return [c.char]
-
-        possible = []
-
-        cur_words = self.build_words(c)
-        xvalid = self.get_valid_words(cur_words[0])
-        yvalid = self.get_valid_words(cur_words[1])
-
-        if (len(xvalid) < len(yvalid)):
-            possible = get_nth_characters(xvalid, c.y)
-            for char in possible:
-                for w in range(len(yvalid)):
-                    if char == yvalid[w][c.x]:
-                        break
-                    if (w == len(yvalid) - 1):
-                        possible.remove(char)
-                    
-        else:
-            possible = get_nth_characters(yvalid, c.x)
-            for char in possible:
-                for w in range(len(xvalid)):
-                    if char == xvalid[w][c.y]:
-                        break
-                    if (w == len(xvalid) - 1): 
-                        possible.remove(char)
+            print("No cells to collapse")
+            return None
         
-        return possible
+        self._update()
 
-    
-    def build_words(self, c):
-        down = right = ''
-        for y in range(self.size):
-            cell = self.board[c.x][y]
-            if cell.collapsed:
-                right += cell.char
-            else:
-                right += '*' 
 
-        for x in range(self.size):
-            cell = self.board[x][c.y]
-            if cell.collapsed:
-                down += cell.char
-            else:
-                down += '*'
+    def test(self):
+        self.grid[0][1].collapsed = True
+        self.grid[0][1].char = 'f'
+        print(self._get_possible_chars(self.grid[1][1]))
 
-        return [right, down]
 
-    
-    def get_valid_words(self, word):
-        valid = []
-        for w in self.words:
-            for c in range(len(w)):
-                if (word[c] != '*' and w[c] != word[c]):
-                    break
-                if (c == len(w) - 1):
-                    valid.append(w)
+    def _update(self):
+        for cell in self.grid.flatten():
+            if not cell.collapsed:
+                cell.options = list(self._get_possible_chars(cell))
+                cell.ent = len(cell.options)
+                # print(f"\t\tCell {cell.options} {cell.ent} possible characters")
+                if len(cell.options) == 0:
+                    # print(f"\n\n\nCell {cell.cord} has no possible characters, Backtrack!")
+                    # get second to last in history
+                    self.counter += 1
 
-        return valid
+                    if self.counter > 200:
+                        # print("\n\n\nBacktrack limit reached, full reset")
+                        self.grid = self._create_grid()
+                        self.counter = 0
+                    else:
+                        vertical_cells = [cell for cell in self.grid[cell.x, :]]
+                        horizontal_cells = [cell for cell in self.grid[:, cell.y]]
+
+                        for cell in vertical_cells:
+                            cell.reset()
+                        for cell in horizontal_cells:
+                            cell.reset()
+
+                    # print(f"\tCounter: {self.counter}")
+                    # print(f"\tGrid: {self.grid}")
+
+                    self.collapse()
+
+
+    def _pick(self):
+        # get a list of cells that have cell.collapsed == False
+        uncollapsed_list = [cell for row in self.grid for cell in row if not cell.collapsed]
+
+        if len(uncollapsed_list) == 0:
+            print("All cells have been collapsed")
+            self.complete = True
+            return None
         
-    
-    def complete(self):
-        cell_list = self.get_list()
-        for c in cell_list:
-            if (c.collapsed == False):
-                return False
-    
-        return True
+        # get all cells with the least entropy
+        least_entropy = min([cell.ent for cell in uncollapsed_list])
+        least_entropy_cells = [cell for cell in uncollapsed_list if cell.ent == least_entropy]
+
+        # return a random cell from the list of cells with the least entropy
+        return random.choice(least_entropy_cells)
 
 
-    def read(self):
-        # Read in words from file
-        with open(self.file, 'r') as f:
-            for line in f:
-                if (len(line.strip()) == self.x):
-                    self.words.append(line.strip())
-        self.shuffle_words()
+    def _get_possible_chars(self, cell):
+        res, hPotential, vPotential = set(), set(), set()
 
-    def shuffle_words(self):
-        random.shuffle(self.words)
+        # Extract the vertical/horizontal word associated with a given cell
+        vertical_word = ''.join(cell.char for cell in self.grid[cell.x, :])
+        horizontal_word = ''.join(cell.char for cell in self.grid[:, cell.y])
 
-    def cell_exist(self, x, y):
-        if (x < 0 or x >= self.x or y < 0 or y >= self.y):
-            return False
+        # Search the current words for matches in word list
+        possible_horizontal = self._search_with_regex(horizontal_word)
+        possible_vertical = self._search_with_regex(vertical_word)
 
-        for c in self.get_list():
-            if (c.cord == (x, y)):
-                return True
-            
-        return False
+        # print first 10 words in possible_horizontal and possible_vertical
+        # print(f"\t\t\tHorizontal: {list(possible_horizontal)[:10]}")
+        # print(f"\t\t\tVertical: {list(possible_vertical)[:10]}")
 
-    def get_list(self):
-        grid = copy.copy(self.board)
-        cell_list =  [element for sublist in grid for element in sublist]
-        return cell_list
-    
-    '''
-    Debug Functions
-    '''
-
-    def manual_collapse(self, x, y, char):
-        print('Collapsing')
-        if (self.cell_exist(x, y)):
-            self.board[x][y].manual_observe(char)
-            print('Full Update')
-            self.update()
-        else:
-            print('Error, cell does not exist')
-            return
-
-    def print_board(self):
-        for i in range(self.y):
-            for j in range(self.x):
-                cell = self.board[i][j]
-                print("{: <2s}".format(str(cell.char)), end=' ')
-            print()
-
-    def print_board_ent(self):
-        for i in range(self.y):
-            for j in range(self.x):
-                cell = self.board[i][j]
-                print("{: <2s}".format(str(cell.ent)), end=' ')
-            print()
-    
-    def debug(self):
-        self.print_board()
-        print('\n')
-        self.print_board_ent()
-        print('\n')
-        for i in range(self.y):
-            for j in range(self.x):
-                cell = self.board[i][j]
-                print("{: <2s}".format(str(cell.cord)), end=' ')
-            print()
-        print('-----------')
+        # Skip if all words are possible
+        if possible_horizontal == self.words and possible_vertical == self.words:
+            return set(CHARS)
         
-        
+        if possible_horizontal == self.words: hPotential = set(CHARS)
+        if possible_vertical == self.words: vPotential = set(CHARS)
 
-class Cell:
+        # Extract possible characters from the potential words
+        if possible_horizontal and possible_horizontal != self.words:
+            for word in possible_horizontal:
+                hPotential.add(word[cell.x])
 
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.cord = (x, y)
-        self.char = '0'
-        self.ent = 26
-        self.options = 'abcdefghijklmnopqrstuvwxyz'
-        self.collapsed = False
+        if possible_vertical and possible_vertical != self.words:
+            for word in possible_vertical:
+                vPotential.add(word[cell.y])
 
-    def __repr__(self):
-        out = str(self.cord)
-        if (self.collapsed):
-            out += ' char: ' + self.char + ' ent: ' + str(self.ent)
-        else:
-            out += ' ent: ' + str(self.ent)
-        
+        res = hPotential.intersection(vPotential)
+
+        return res
+
+
+    def _search_with_regex(self, pattern):
+        if '_' not in pattern:
+            return {pattern}
+        elif pattern.count('_') == len(pattern):
+            return self.words
+
+        regex_pattern = pattern.replace('_', '.')
+        regex = re.compile(f"^{regex_pattern}$")
+        return {word for word in self.words if regex.match(word)}
+
+    
+    def _create_grid(self):
+        out = np.empty((self.size, self.size), dtype=object)
+
+        for i in range(self.size):
+            for j in range(self.size):
+                out[i][j] = Cell(i, j)
+
         return out
+    
+    
+    def _read_words(self):
+        words = set()
 
-    def calc_ent(self):
-        # Calculate potential states of cell
-        self.ent = len(self.options)
+        with open(self.fileName, 'r') as f:
+            for line in f:
+                if (len(line.strip()) == self.size):
+                    words.add(line.strip())
+        return words
 
-    def update(self):
-        if self.ent == 1:
-            self.collapsed = True
-            self.char = self.options[0]
-
-    def observe(self):
-        # Choose random choice based on neighboring cells
-        try:
-            print('Observing: ' + str(self.cord))
-            self.collapsed = True
-            self.char = self.options[random.randint(0, len(self.options) - 1)]
-            self.ent = 1
-            self.update()
-        except Exception as e:
-            print('Error: ' + str(self.cord) + ' NEED BACKTRACK')
-
-        
-    def manual_observe(self, char):
-        self.collapsed = True
-        self.char = char
-        self.options = [self.char]
-        self.ent = 1
-        self.update()
-        
-def get_nth_characters(list, n):
-    chars = []
-    for s in list:
-        if s[n] not in chars:
-            chars.append(s[n])
-    return chars
+    def print_ent(self):
+        for row in self.grid:
+            for cell in row:
+                print(cell.ent, end=' ')
+            print()
