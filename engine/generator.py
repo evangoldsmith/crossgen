@@ -85,6 +85,7 @@ class Board:
                     print_debug(f"\tCounter: {self.counter}")
                     print_debug(f"\tGrid: {self.grid}")
 
+                    self._update()
                     self._collapse()
 
     def _pick(self):
@@ -102,6 +103,7 @@ class Board:
 
     def _get_possible_chars(self, cell):
         res, hPotential, vPotential = set(), set(), set()
+        current_words = self._get_finished_words()
 
         vertical_word = ''.join(cell.char for cell in self.grid[cell.x, :])
         horizontal_word = ''.join(cell.char for cell in self.grid[:, cell.y])
@@ -120,27 +122,35 @@ class Board:
 
         if possible_horizontal and possible_horizontal != self.words:
             for word in possible_horizontal:
-                hPotential.add(word[cell.x])
+                if word not in current_words: hPotential.add(word[cell.x])
 
         if possible_vertical and possible_vertical != self.words:
             for word in possible_vertical:
-                vPotential.add(word[cell.y])
+                if word not in current_words: vPotential.add(word[cell.y])
 
         res = hPotential.intersection(vPotential)
 
         return res
 
     def _get_finished_words(self):
-        if not self.complete:
-            return None
-        rows = [''.join(cell.char for cell in row) for row in self.grid]
-        columns = [''.join(cell.char for cell in column) for column in self.grid.T]
 
-        return rows + columns
+        finished_words = []      
+
+        for row in self.grid:
+            word = ''.join(cell.char for cell in row)
+            if '_' not in word:
+                finished_words.append(word)
+        
+        for col in self.grid.T:
+            word = ''.join(cell.char for cell in col)
+            if '_' not in word:
+                finished_words.append(word)
+
+        return finished_words
 
     def _search_with_regex(self, pattern):
         if '_' not in pattern:
-            return {pattern}
+            return {pattern}/""
         elif pattern.count('_') == len(pattern):
             return self.words
 
