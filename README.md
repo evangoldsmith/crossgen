@@ -5,27 +5,27 @@ This idea has been used as an algorithm for procedural generation of complex ima
 
 ## How to run
 
-To quickly generate a crossword with default settings, simply run:
+To quickly generate a crossword with default difficulty settings, simply run:
 ```
 python main.py
 ```
 
-You can pass in arguments for board size and difficulty. Difficulty options include "easy/e", "medium/m", or "hard/h". Minimum size for a board is 2 (2x2 square) while sizes larger than 5 will take a long time to generate.
+You can pass in an option for board difficulty by including "easy/e", "medium/m", or "hard/h". 
 
 ```
-python main.py 3 medium
+python main.py medium
 ```
 
 If you wish to see more information on the generation process, you can set the `DEBUG` flag to True at the top of `engine/generator.py`.
 
 ## How It Works
-A square board of a user inputed size is instatiated with each cell starting with max "entropy" of 26 (for each potential letter in the alphabet).
+A board of a random shape (picked from `engine/shapes.txt`) is instatiated with each cell starting with max "entropy" of 26 (for each potential letter in the alphabet).
 
 ![Representation of wfc board](img/crossgen.jpg)
 
 The board then goes through a series of "collapsing" where a random cell with minimum entropy is observed and collapsed to a random letter of it's potential options. The board is then checked to update the potential characters for each cell. 
 
-If a configuration of letters is reached where a cell has 0 potential characters left to choose from, the engine will backtrack and reset the the cells vertical/horizontal to it. Once every cell is filled with a letter that completes a board of valid words, the collapsing stops and the board is printed to the console.
+If a configuration of letters is reached where a cell has 0 potential characters left to choose from, the engine will backtrack and reset the the cells vertical/horizontal to it. Once every cell is filled with a letter that completes a board of valid words, the collapsing stops and the resulting puzzle is printed to the console.
 
 ## Special Thanks
 - Rachael Tatman 
