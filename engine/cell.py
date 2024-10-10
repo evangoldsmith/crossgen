@@ -10,7 +10,7 @@ class Cell:
         self.cord = (x, y)
         self.char = char
         self.ent = ent
-        self.options = options
+        self.options = set(options)
         self.collapsed = collapsed
 
 
@@ -21,8 +21,12 @@ class Cell:
     def observe(self):
         self.collapsed = True
         self.ent = 1
-        self.char = random.choice(self.options)
-        self.options = [self.char]
+        if self.options:
+            self.char = random.choice(list(self.options))
+            self.options = {self.char}
+        else:
+            self.char = '_'
+            self.options = set()
 
 
     def reset(self):
