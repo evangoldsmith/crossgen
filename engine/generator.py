@@ -1,7 +1,9 @@
 import re
+import json
 import random
 
 from engine.cell import Cell, CHARS
+from engine.llm.clue_generator import get_llm_response
 
 DEBUG = False
 
@@ -11,22 +13,35 @@ def print_debug(*args, **kwargs):
 
 class Board:
 
-    def __init__(self, difficulty=0):
+    def __init__(self, difficulty=0, shape=None):
         self.difficulty = difficulty
         self.filename = f"words_{['easy', 'medium', 'hard'][difficulty]}.txt"
         self.counter = 0
         self.complete = False
-        self.shapes = self.read_shapes_file()
+        self.shapes = self._read_shapes_file()
 
-        self.shape = random.choice(self.shapes)
+        self.shape = random.choice(self.shapes) if not shape else shape
         self.grid = self._create_grid()
+        self._setup_grid()
 
         self.words = self._read_words(self.filename)
 
+
     def generate(self):
+        if len(self.grid) < 2:
+            print("Must have at least 2 cells in shape to generate")
+            return None
+
         while not self.complete:
             self._collapse()
         self._visualize()
+
+        across, down = self._return_finshed_words()
+        print(f"Across: {across}")
+        print(f"Down: {down}")
+
+        self._get_clues()
+
 
     def _collapse(self):
         choice = self._pick()
@@ -48,8 +63,9 @@ class Board:
 
     def _backtrack(self, problem_cell):
         self.counter += 1
-        if self.counter > 200:
+        if self.counter > 100:
             print_debug("Backtrack limit reached, full reset")
+            if DEBUG: self._visualize()
             for cell in self.grid.values():
                 cell.reset()
             self.counter = 0
@@ -73,37 +89,34 @@ class Board:
         return random.choice(least_entropy_cells)
     
     def _get_possible_chars(self, cell):
-        res, hPotential, vPotential = set(), set(), set()
+        res, hPotential, vPotential = set(), set(CHARS), set(CHARS)
         current_words = self._get_finished_words()
 
-        horizontal_word = self._get_word_at(cell.x, cell.y, horizontal=True)
-        vertical_word = self._get_word_at(cell.x, cell.y, horizontal=False)
-
-        possible_horizontal = self._search_with_regex(horizontal_word)
-        possible_vertical = self._search_with_regex(vertical_word)
-
-        # print(f"Horizontal: {possible_horizontal}")
-        # print(f"Vertical: {possible_vertical}")
-
-        if possible_horizontal == self.words and possible_vertical == self.words:
-            return set(CHARS)
-        
-        if possible_horizontal == self.words: hPotential = set(CHARS)
-        if possible_vertical == self.words: vPotential = set(CHARS)
-
-        h_spot, v_spot = cell.x - (self._get_word_start(cell.x, cell.y, horizontal=True))[0], cell.y - (self._get_word_start(cell.x, cell.y, horizontal=False))[1]
-
-        if possible_horizontal and possible_horizontal != self.words:
-            for word in possible_horizontal:
-                if word not in current_words and len(word) > h_spot: hPotential.add(word[h_spot])
-
-        if possible_vertical and possible_vertical != self.words:
-            for word in possible_vertical:
-                if word not in current_words and len(word) > v_spot: vPotential.add(word[v_spot])
+        if cell.has_horizontal:
+            horizontal_word = self._get_word_at(cell.x, cell.y, horizontal=True)
+            h_spot = cell.x - (self._get_word_start(cell.x, cell.y, horizontal=True))[0]
+            hPotential = self._get_potential(horizontal_word, h_spot, current_words)
+        if cell.has_vertical:
+            vertical_word = self._get_word_at(cell.x, cell.y, horizontal=False)
+            v_spot = cell.y - (self._get_word_start(cell.x, cell.y, horizontal=False))[1]
+            vPotential = self._get_potential(vertical_word, v_spot, current_words)
 
         res = hPotential.intersection(vPotential)
 
         return res
+    
+    def _get_potential(self, word, spot, finished_words):
+        potential = set()
+        valid = self._search_with_regex(word)
+
+        if valid == self.words:
+            return set(CHARS)
+        
+        for word in valid:
+            if word not in finished_words and len(word) > spot:
+                potential.add(word[spot])
+
+        return potential
     
     def _get_finished_words(self):
         finished_words = []
@@ -116,21 +129,48 @@ class Board:
                 return (x, y - 1) not in self.grid
 
         for (x, y) in self.grid:
-            # Horizontal
-            if is_word_start(x, y, True) and (x, y, True) not in visited_starts:
-                word = self._get_word_at(x, y, horizontal=True)
-                if '_' not in word:
-                    finished_words.append(word)
-                    visited_starts.add((x, y, True))
+            if self.grid[(x, y)].has_horizontal:
+                if is_word_start(x, y, True) and (x, y, True) not in visited_starts:
+                    word = self._get_word_at(x, y, horizontal=True)
+                    if '_' not in word:
+                        finished_words.append(word)
+                        visited_starts.add((x, y, True))
 
-            # Vertical
-            if is_word_start(x, y, False) and (x, y, False) not in visited_starts:
-                word = self._get_word_at(x, y, horizontal=False)
-                if '_' not in word:
-                    finished_words.append(word)
-                    visited_starts.add((x, y, False))
+            if self.grid[(x, y)].has_vertical:
+                if is_word_start(x, y, False) and (x, y, False) not in visited_starts:
+                    word = self._get_word_at(x, y, horizontal=False)
+                    if '_' not in word:
+                        finished_words.append(word)
+                        visited_starts.add((x, y, False))
 
         return finished_words
+    
+    def _return_finshed_words(self):
+        horizontal_words, vertical_words = [], []
+        visited_starts = set()
+
+        def is_word_start(x, y, horizontal):
+            if horizontal:
+                return (x - 1, y) not in self.grid
+            else:
+                return (x, y - 1) not in self.grid
+
+        for (x, y) in self.grid:
+            if self.grid[(x, y)].has_horizontal:
+                if is_word_start(x, y, True) and (x, y, True) not in visited_starts:
+                    word = self._get_word_at(x, y, horizontal=True)
+                    if '_' not in word:
+                        horizontal_words.append(word)
+                        visited_starts.add((x, y, True))
+
+            if self.grid[(x, y)].has_vertical:
+                if is_word_start(x, y, False) and (x, y, False) not in visited_starts:
+                    word = self._get_word_at(x, y, horizontal=False)
+                    if '_' not in word:
+                        vertical_words.append(word)
+                        visited_starts.add((x, y, False))
+
+        return horizontal_words, vertical_words      
 
 
     def _search_with_regex(self, pattern):
@@ -150,6 +190,13 @@ class Board:
                 if cell == '_':
                     grid[(x, y)] = Cell(x, y)
         return grid
+    
+    def _setup_grid(self):
+        for cord in self.grid:
+            if self._get_word_start(cord[0], cord[1], horizontal=True) == (cord[0], cord[1]) and (cord[0]+1, cord[1]) not in self.grid:
+                self.grid[(cord[0], cord[1])].has_horizontal = False
+            if self._get_word_start(cord[0], cord[1], horizontal=False) == (cord[0], cord[1]) and (cord[0], cord[1]+1) not in self.grid:
+                self.grid[(cord[0], cord[1])].has_vertical = False
     
     def _get_word_at(self, x, y, horizontal=True):
         word = []
@@ -202,7 +249,7 @@ class Board:
                     words.add(word)
         return words
     
-    def read_shapes_file(self, filename='engine/shapes.txt'):
+    def _read_shapes_file(self, filename='engine/shapes.txt'):
         shapes = []
         current_shape = []
 
@@ -220,3 +267,16 @@ class Board:
                 shapes.append(current_shape)
 
         return shapes
+    
+    def _get_clues(self):
+        across, down = self._return_finshed_words()
+        res = json.loads(get_llm_response(across, down))
+        print(type(res))
+        print("Down")
+        for word, clue in res['down_clues'].items():
+            print(f"{word}: {clue}")
+        print("\n")
+        print("Across")
+        for word, clue in res['across_clues'].items():
+            print(f"{word}: {clue}")
+        

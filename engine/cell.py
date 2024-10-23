@@ -13,6 +13,9 @@ class Cell:
         self.options = set(options)
         self.collapsed = collapsed
 
+        self.has_horizontal = True
+        self.has_vertical = True
+
 
     def __repr__(self):
         return f"{self.char}"

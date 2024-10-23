@@ -3,11 +3,19 @@ from engine.generator import Board
 
 DEFAULT_DIFFICULTY = 0
 
+SHAPE = [
+    "X_X_X",
+    "_____",
+    "X_X_X",
+    "_____",
+    "X_X_X",
+]
+
 def main():
     difficulty = parse_arguments()
     crossword = Board(difficulty)
     crossword._visualize()
-    
+
     crossword.generate()
 
 def parse_arguments():
