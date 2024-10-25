@@ -1,4 +1,5 @@
 import sys
+import json
 from engine.generator import Board
 
 DEFAULT_DIFFICULTY = 0
@@ -17,6 +18,9 @@ def main():
     crossword._visualize()
 
     crossword.generate()
+
+    output = crossword.get_json()
+    print(json.dumps(output, indent=2))
 
 def parse_arguments():
     difficulty = DEFAULT_DIFFICULTY
