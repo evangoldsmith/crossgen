@@ -5,7 +5,21 @@ This idea has been used as an algorithm for procedural generation of complex ima
 
 ## How to run
 
-To quickly generate a crossword with default difficulty settings, simply run:
+### Web Application
+To start the flask server for local development, run:
+```
+flask run --debug
+```
+
+Next, in a new terminal window, cd into the frontend directory and start the node server:
+```
+cd frontend
+npm start
+```
+You can now access the web application through `http://localhost:3000`
+
+### Command Line
+To quickly generate a crossword with default difficulty settings through the terminal, simply run:
 ```
 python main.py
 ```
@@ -16,6 +30,18 @@ You can pass in an option for board difficulty by including "easy/e", "medium/m"
 python main.py medium
 ```
 
+You can designate a specific crossword shape by creating a SHAPE variable within `main.py`. For example:
+```python
+SHAPE = [
+    "X_X_X",
+    "_____",
+    "X_X_X",
+    "_____",
+    "X_X_X",
+]
+
+crossword = Board(difficulty=0, shape=SHAPE)
+```
 If you wish to see more information on the generation process, you can set the `DEBUG` flag to True at the top of `engine/generator.py`.
 
 ## How It Works
