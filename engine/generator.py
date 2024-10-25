@@ -13,12 +13,14 @@ def print_debug(*args, **kwargs):
 
 class Board:
 
-    def __init__(self, difficulty=0, shape=None):
+    def __init__(self, difficulty=0, shape=None, useLLM=True):
         self.difficulty = difficulty
         self.filename = f"words_{['easy', 'medium', 'hard'][difficulty]}.txt"
         self.counter = 0
         self.complete = False
         self.shapes = self._read_shapes_file()
+        self.useLLM = useLLM
+        self.clues = None
 
         self.shape = random.choice(self.shapes) if not shape else shape
         self.grid = self._create_grid()
@@ -269,9 +271,16 @@ class Board:
         return shapes
     
     def _get_clues(self):
+        if not self.useLLM:
+            print("LLM is not enabled, generating mock clues")
+            self.clues = {
+                "across_clues": {word: "Mock clue" for word in self._return_finshed_words()[0]},
+                "down_clues": {word: "Mock clue" for word in self._return_finshed_words()[1]},
+            }
+            return None
+
         across, down = self._return_finshed_words()
         res = json.loads(get_llm_response(across, down))
-        print(type(res))
         print("Down")
         for word, clue in res['down_clues'].items():
             print(f"{word}: {clue}")
@@ -279,4 +288,73 @@ class Board:
         print("Across")
         for word, clue in res['across_clues'].items():
             print(f"{word}: {clue}")
+
+        self.clues = res
+
+    def _rle(self):
+        if not self.shape:
+            return ''
+        
+        result = []
+        current_char = self.shape[0][0]
+        count = 0
+        
+        flattened = ''.join(self.shape)
+        
+        for char in flattened:
+            if char == current_char:
+                count += 1
+            else:
+                result.append(f"{count}{current_char}")
+                current_char = char
+                count = 1
+                
+        result.append(f"{count}{current_char}")
+        return ''.join(result)
+
+
+    def get_json(self):
+        if not self.complete or not self.clues:
+            print("Cannot generate JSON until board is complete")
+            return None
+
+        across, down = {}, {}
+        aCount, dCount = 1, 1
+        finished_words = []
+        visited_starts = set()
+
+        def is_word_start(x, y, horizontal):
+            if horizontal:
+                return (x - 1, y) not in self.grid
+            else:
+                return (x, y - 1) not in self.grid
+
+        for (x, y) in self.grid:
+            if self.grid[(x, y)].has_horizontal:
+                if is_word_start(x, y, True) and (x, y, True) not in visited_starts:
+                    word = self._get_word_at(x, y, horizontal=True)
+                    visited_starts.add((x, y, True))
+                    across[aCount] = {
+                        "clue": self.clues['across_clues'][word],
+                        "answer": word.capitalize(),
+                        "row": y,
+                        "col": x,
+                    }
+                    aCount += 1
+
+            if self.grid[(x, y)].has_vertical:
+                if is_word_start(x, y, False) and (x, y, False) not in visited_starts:
+                    word = self._get_word_at(x, y, horizontal=False)
+                    visited_starts.add((x, y, False))
+                    down[dCount] = {
+                        "clue": self.clues['down_clues'][word],
+                        "answer": word.capitalize(),
+                        "row": y,
+                        "col": x,
+                    }
+                    dCount += 1
+        return {
+            "across": across,
+            "down": down,
+        }
         
