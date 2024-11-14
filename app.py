@@ -6,9 +6,11 @@ from engine.generator import Board
 x = datetime.datetime.now()
 app = Flask(__name__)
 
+
 @app.route("/")
 def index():
     return "CrossGen API is running!"
+
 
 @app.route("/generate")
 def generate():
@@ -16,4 +18,3 @@ def generate():
     crossword.generate()
 
     return crossword.get_json()
-

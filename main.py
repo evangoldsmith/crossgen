@@ -12,6 +12,7 @@ SHAPE = [
     "X_X_X",
 ]
 
+
 def main():
     difficulty = parse_arguments()
     crossword = Board(difficulty)
@@ -21,6 +22,7 @@ def main():
 
     output = crossword.get_json()
     print(json.dumps(output, indent=2))
+
 
 def parse_arguments():
     difficulty = DEFAULT_DIFFICULTY
@@ -34,9 +36,12 @@ def parse_arguments():
         elif difficulty_arg in ["hard", "h"]:
             difficulty = 2
         else:
-            print(f"Invalid difficulty argument. Using default difficulty: {DEFAULT_DIFFICULTY}")
+            print(
+                f"Invalid difficulty argument. Using default difficulty: {DEFAULT_DIFFICULTY}"
+            )
 
     return difficulty
+
 
 if __name__ == "__main__":
     main()
