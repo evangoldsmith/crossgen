@@ -20,7 +20,7 @@ def get_llm_response(across_words, down_words):
     model = genai.GenerativeModel(
         model_name="gemini-1.5-pro",
         generation_config=config,
-        system_instruction="You are a crossword clue generator who will make a unique clue for each across and down word that is provided. Make the clues creative and reference pop culture or history if possible.",
+        system_instruction="You are a crossword clue generator who will make a unique clue for each across and down word that is provided. Feel free to reference popular culture, science, or other clues in the crossword.",
     )
 
     chat_session = model.start_chat(history=[])
