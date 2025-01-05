@@ -3,6 +3,8 @@
 [Wave function collapse](https://en.wikipedia.org/wiki/Wave_function_collapse) is a concept first originated to describe superpositions in quantum mechanics. It describes the process in which a quantum system is "observed" by the external world and collapses into a single measurable state. 
 This idea has been used as an algorithm for procedural generation of complex images, audio, text, and other forms of media. In this project, I use a custom version of this algorithm written in python to automatically generate unique crosswords.
 
+![Screenshot of CrossGen](https://github.com/evangoldsmith/crossgen/blob/main/img/sc.jpg?raw=true)
+
 ## How to run
 
 ### Web Application
