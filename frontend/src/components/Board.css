@@ -1,0 +1,29 @@
+/* Board.css */
+.button {
+    padding: 10px 20px;
+    background-color: #f99;
+    color: black;
+    border: none;
+    border-radius: 5px;
+    font-size: 16px;
+    font-weight: bolder;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.button:hover {
+    background-color: rgb(195, 71, 71);
+}
+
+.correct-message {
+    color: black;
+    font-size: 2.2rem;
+    font-weight: bold;
+    background-color: #f99;
+    border: 2px solid #f00;
+    padding: 10px;
+    border-radius: 5px;
+    text-align: center;
+    margin: 10px 0;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+}
