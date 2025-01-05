@@ -357,7 +357,7 @@ class Board:
                     visited_starts.add((x, y, True))
                     across[aCount] = {
                         "clue": self.clues["across_clues"][word],
-                        "answer": word.capitalize(),
+                        "answer": word.upper(),
                         "row": y,
                         "col": x,
                     }
@@ -369,11 +369,12 @@ class Board:
                     visited_starts.add((x, y, False))
                     down[dCount] = {
                         "clue": self.clues["down_clues"][word],
-                        "answer": word.capitalize(),
+                        "answer": word.upper(),
                         "row": y,
                         "col": x,
                     }
                     dCount += 1
+
         return {
             "across": across,
             "down": down,
